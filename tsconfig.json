@@ -7,7 +7,7 @@
         "allowSyntheticDefaultImports": true,
     },
     "include": [
-        "src"
+        "src", "go/router.ts", "mock"
     ],
     "exclude": [
         "node_modules"

@@ -9,7 +9,7 @@ env:
     es6: true
     browser: true
 rules:
-    indent:
+    '@typescript-eslint/indent':
         - error
         - 4
     semi:
