@@ -49,8 +49,7 @@ interface RouterGuard {
 } 
 
 interface EnterRouteGuard {
-    resolve:(params:any,navigate:navigate,next:Function) => void,
-    path:string
+    (params:any,navigate:navigate,next:Function) : void,
 }
 
 interface UpdateRouteGuard {
@@ -133,8 +132,8 @@ export const Route:React.FC<RouteProps> = ({ path, match, component, children, e
 
     useActionEffect(() => {
         if(!enterGuard) return
-        let guardGroup = JSON.stringify({ from: '*',to: enterGuard.path })
-        globalCtx.guardMap[guardGroup] = (params,next) => enterGuard.resolve(params,navigate,next)
+        let guardGroup = JSON.stringify({ from: '*',to: path })
+        globalCtx.guardMap[guardGroup] = (params,next) => enterGuard(params,navigate,next)
     },[enterGuard])
     // `props.match` is present - Route is controlled by the Switch
     const [matches, params] = match && match(path,basePath) || useRouteMatch

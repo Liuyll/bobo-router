@@ -22,7 +22,7 @@ const App:React.SFC<any> = function(){
         useGuard({
             to: '/url2/:id',
             resolve(navigate,next){
-                console.log('emit guard / to url1')
+                console.log('emit guard / to url2')
                 next()
             },
             type: 'beforeLeave'
@@ -80,14 +80,13 @@ const App:React.SFC<any> = function(){
                 <ReturnComponent></ReturnComponent>
                 <URL1Component/>
             </Route>
-            <Route exact path="/url2/:id" enterGuard={{
-                resolve(params,navigate,next){
+            <Route exact path="/url2/:id" enterGuard={
+                (params,navigate,next) => {
                     console.log('beforeeach emit params:',params)
                     // navigate('/url1')
                     next()
-                },
-                path: '/url2/:id'
-            }}>
+                }
+            }>
                 <ReturnComponent></ReturnComponent>
                 <RouteGuardComponentURL2/>
             </Route>
