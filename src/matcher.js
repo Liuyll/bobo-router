@@ -22,12 +22,8 @@ export default function makeMatcher(makeRegexpFn = pathToRegexp) {
     }
 }
   
-// escapes a regexp string (borrowed from path-to-regexp sources)
-// https://github.com/pillarjs/path-to-regexp/blob/v3.0.0/index.js#L202
 const escapeRx = str => str.replace(/([.+*?=^!:${}()[\]|/\\])/g, "\\$1")
   
-// returns a segment representation in RegExp based on flags
-// adapted and simplified version from path-to-regexp sources
 const rxForSegment = (repeat, optional, prefix) => {
     let capture = repeat ? "((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*)" : "([^\\/]+?)"
     if (optional && prefix) capture = "(?:\\/" + capture + ")"
@@ -45,10 +41,6 @@ const pathToRegexp = pattern => {
     while ((match = groupRx.exec(pattern)) !== null) {
         const [_, segment, mod] = match
   
-        // :foo  [1]      (  )
-        // :foo? [0 - 1]  ( o)
-        // :foo+ [1 - ∞]  (r )
-        // :foo* [0 - ∞]  (ro)
         const repeat = mod === "+" || mod === "*"
         const optional = mod === "?" || mod === "*"
         const prefix = optional && pattern[match.index - 1] === "/" ? 1 : 0
