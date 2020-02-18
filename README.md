@@ -41,3 +41,11 @@ bobo拥有完全可靠的匹配规则(实现了path-to-regexp的核心部分)，
 + `exact`:是否精准匹配组件，详见<b>react-router exact</b>
 + `enterGuard(params,navigate,next)`
 + `updateGuard(prevParams,curParams,navigate,next)`
+
+#### Switch
+#### Router
+#### Redirect
+
+### Hooks API
+#### useRouter
+#### useLocation
