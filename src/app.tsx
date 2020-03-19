@@ -1,10 +1,9 @@
 ///<reference types="webpack-env" />
 
 import * as React from 'react'
-import { Route,Link,useGuard,useRouter,useLocation } from './bobots'
+import { Route,Link,useLeaveGuard,useRouter,useLocation,connectGuard } from './bobots'
 import URL1Component from './component'
 import Lazy from '../test/lazyload'
-import { Suspense,lazy } from 'react'
 
 if(module.hot){
     /* 该dependency还需要研究
@@ -19,14 +18,14 @@ if(module.hot){
 
 const App:React.SFC<any> = function(){
     const RouteGuardComponent = () => {
-        useGuard({
-            to: '/url2/:id',
-            resolve(navigate,next){
-                console.log('emit guard / to url2')
-                next()
-            },
-            type: 'beforeLeave'
-        })
+        // useGuard({
+        //     to: '/url2/:id',
+        //     resolve(navigate,next){
+        //         console.log('emit guard / to url2')
+        //         next()
+        //     },
+        //     type: 'beforeLeave'
+        // })
         return (
             <div>
                 /
@@ -34,21 +33,10 @@ const App:React.SFC<any> = function(){
         )
     } 
 
-    const RouteGuardComponentURL1 = () => {
-        useGuard({
-            to: 'url2',
-            resolve(navigate,next){
-                console.log('emit guard url1 to url2')
-                next()
-            },
-            type: 'beforeLeave'
-        })
-        return (
-            <div>
-                url1
-            </div>
-        )
-    } 
+    const TestGuard = connectGuard('beforeEnter',(prevPath,navigate,next) => {
+        console.log('enter')
+        next()
+    },'*')(RouteGuardComponent)
 
     const RouteGuardComponentURL2 = () => {
         return (
@@ -70,14 +58,18 @@ const App:React.SFC<any> = function(){
 
     return (
         <div>
+            <ReturnComponent></ReturnComponent>
             {/* <div>path:{useLocation()[0]}</div> */}
             <Route path="/">
-                <div>//////</div>
-                <ReturnComponent></ReturnComponent>
-                <RouteGuardComponent/>
+                {/* <RouteGuardComponent/> */}
+                <TestGuard/>
             </Route>
-            <Route path="/url1/:id">
-                <ReturnComponent></ReturnComponent>
+            <Route path="/url1/:id" updateGuard={
+                (beforeParams,currentParams,navigate,next) => {
+                    console.log(beforeParams,currentParams)
+                    next()
+                }
+            }>
                 <URL1Component/>
             </Route>
             <Route exact path="/url2/:id" enterGuard={
@@ -87,7 +79,6 @@ const App:React.SFC<any> = function(){
                     next()
                 }
             }>
-                <ReturnComponent></ReturnComponent>
                 <RouteGuardComponentURL2/>
             </Route>
             <Lazy></Lazy>

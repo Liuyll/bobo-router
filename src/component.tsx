@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Route,Link } from './bobots'
+import { Route,Link,useLeaveGuard } from './bobots'
 import { getParams } from './bobots/helper'
 
 export default () => {

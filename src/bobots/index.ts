@@ -36,6 +36,8 @@ type updateGuardStruct = {
     prevParams:params;
 }
 
+type guardTypes = 'beforeLeave' | 'beforeUpdate' | 'beforeEnter'
+
 interface RouterGuard {
     path ?: string,
     to:string,
@@ -143,7 +145,7 @@ export const Route:React.FC<RouteProps> = ({ path, match, component, children, e
     enum Execute_Guard_Type {
         None,
         Update,
-        // If not in exact mode.However should execute update instead enter
+        // If not in exact mode. However should execute update instead enter
         Update_UnResolve,
         Enter,
     }
@@ -190,10 +192,10 @@ export const Route:React.FC<RouteProps> = ({ path, match, component, children, e
     return typeof children === "function" ? children(params) : children
 }
 
-export const useGuard = (props:RouterGuard) => {
+export const useLeaveGuard = (props:RouterGuard) => {
     const [curPath,navigate] = useLocationHook()
     const { path = curPath,resolve,to,type } = props
-    // type : 'beforeLeave' | 'beforeEnter' | 'beforeUpdate'
+    // type : 'beforeLeave' | 'beforeEnter'
     const globalRef = useContext(RouterCtx)
     
     useEffect(() => {  
@@ -206,6 +208,34 @@ export const useGuard = (props:RouterGuard) => {
         
         globalRef.v.guardMap[currentGuardFlagGroup] = next => resolve(navigate,next)
     },[path,resolve,to])
+}
+
+export const connectGuard = (type:Exclude<guardTypes,'beforeUpdate'>,resolve,from:string,to?:string) => (Component:React.FC):React.FC => {
+    if(type === 'beforeEnter') {
+        to = '*'
+    }
+
+    return (props) => {
+        const { children,...others } = props
+        const matcher = useRouter().matcher
+        const globalRef = useContext(RouterCtx)
+        const { prevPath } = globalRef.v
+        const [curPath,navigate] = useLocationHook()
+
+        let isRender = 0
+        const next = () => {
+            isRender = 1
+        }
+
+        if(type === 'beforeEnter' ) {
+            if(from === '*' || matcher(from,prevPath)[0]) {
+                resolve(prevPath,navigate,next)
+            }
+        }
+
+        if(isRender) return h(Component,others,children)
+        return h('div')
+    }
 }
 
 export const Link = props => {
