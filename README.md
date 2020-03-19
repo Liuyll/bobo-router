@@ -21,7 +21,7 @@
 + `Redirect`
 + `Lazy`
 
-
++ `KeepAlive`
 
 ### 守卫
 
@@ -37,11 +37,15 @@
 
 #### beforeLeave
 
+你有几种方式可以触发这个守卫
+
++ hooks 方式
+
 ```
-import { useGuard } from 'bobo-router'
+import { useLeaveGuard } from 'bobo-router'
 
 function GuardRoute() {
-	useGuard({
+	useLeaveGuard({
 		type:'beforeLeave',
 		to:'/url2/:id',
 		resolve(navigate,next) {
@@ -51,6 +55,36 @@ function GuardRoute() {
 	})
 }
 ```
+
++ HOC 方式
+
+```
+import { connectGuard } from 'bobo-router'
+
+connectGuard('beforeLeave',())
+```
+
+
+
+#### beforeEnter
+
+你有几种方式可以触发这个守卫
+
++ Route 级别
+
+```
+ <Route exact path="/url2/:id" enterGuard={
+     		(params,navigate,next) => {
+        	 next()
+     		}
+     }>
+         <RouteGuardComponentURL2/>
+ </Route>
+```
+
+
+
++ HOC 方式
 
 ### Component API
 
@@ -115,6 +149,10 @@ function GuardRoute() {
 + `exact`:是否精准匹配组件，详见<b>react-router exact</b>
 + `enterGuard(params,navigate,next)`
 + `updateGuard(prevParams,curParams,navigate,next)`
+
+#### KeepAlive
+
+这是个神奇的东西，它不单独作为一个组件出现，而是在`Route`组件里提供一个`isAlive`的props进行配置。
 
 #### Switch
 

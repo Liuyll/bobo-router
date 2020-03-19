@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import { Route,Link,useLeaveGuard,useRouter,useLocation,connectGuard } from './bobots'
+import { useState } from 'react'
 import URL1Component from './component'
 import Lazy from '../test/lazyload'
 
@@ -17,7 +18,8 @@ if(module.hot){
 }
 
 const App:React.SFC<any> = function(){
-    const RouteGuardComponent = () => {
+    const RouteGuardComponent = (props) => {
+        const [a,setA] = useState(1)
         // useGuard({
         //     to: '/url2/:id',
         //     resolve(navigate,next){
@@ -27,8 +29,11 @@ const App:React.SFC<any> = function(){
         //     type: 'beforeLeave'
         // })
         return (
-            <div>
-                /
+            <div style={{ display: props.display === 'none' ? 'none' : 'block' }}>
+                <div>
+                    <button onClick={() => setA(a => a + 1)}>add</button>
+                </div>
+                {a}
             </div>
         )
     } 
@@ -60,7 +65,7 @@ const App:React.SFC<any> = function(){
         <div>
             <ReturnComponent></ReturnComponent>
             {/* <div>path:{useLocation()[0]}</div> */}
-            <Route path="/">
+            <Route path="/" isAlive={true}>
                 {/* <RouteGuardComponent/> */}
                 <TestGuard/>
             </Route>

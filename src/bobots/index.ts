@@ -12,7 +12,7 @@ import {
     cloneElement,
     createElement as h,
     Suspense,
-    lazy
+    lazy,
 } from "react"
 
 import { RouterCtx,store,isMatch,params,matchFn } from './context'
@@ -27,7 +27,8 @@ type RouteProps = {
     enterGuard ?: EnterRouteGuard,
     updateGuard ?: UpdateRouteGuard,
     component ?: React.FC | React.ComponentClass,
-    exact ?: boolean
+    exact ?: boolean,
+    isAlive ?: boolean
 } 
 
 type updateGuardStruct = {
@@ -121,7 +122,7 @@ export const Router = props => {
     })
 }
 
-export const Route:React.FC<RouteProps> = ({ path, match, component, children, enterGuard,updateGuard,exact = false }) => {
+export const Route:React.FC<RouteProps> = ({ path, match, component, children, enterGuard,updateGuard,exact = false,isAlive }) => {
     const updateParamsRef = useRef<updateGuardStruct>({ path: "",timer: 0,prevParams: {} })
     const prevParams = updateParamsRef.current.prevParams
     const [useRouteMatch,basePath,navigate] = !exact ? useNestRoute(path,updateParamsRef.current) : useRoute(path)
@@ -134,11 +135,14 @@ export const Route:React.FC<RouteProps> = ({ path, match, component, children, e
     },[enterGuard])
     // `props.match` is present - Route is controlled by the Switch
     const [matches, params] = match && match(path,basePath) || useRouteMatch
-    if (!matches) return null
+    // if (!matches) return null
+    if(!matches) {
+        if(!isAlive) return null
+        else return renderChild({ display: 'none' })
+    }
 
     // beforeEnter | beforeUpdate guard
     
-    const prevPath = globalCtx.prevPath
     globalCtx.prevPath = basePath
 
     let isEnter = false
@@ -185,11 +189,16 @@ export const Route:React.FC<RouteProps> = ({ path, match, component, children, e
     }
 
     if(!isEnter) return null
-    // React-Router style `component` prop
-    if (component) return h(component, { params } as any)
+    
+    return renderChild()
 
-    // support render prop or plain children
-    return typeof children === "function" ? children(params) : children
+    function renderChild(extraProps ?: object) {
+        // React-Router style `component` prop
+        if (component) return h(component, { params,...extraProps } as any)
+
+        // support render prop or plain children
+        return typeof children === "function" ? cloneElement(children(params),extraProps) : cloneElement(children as any,extraProps)
+    }
 }
 
 export const useLeaveGuard = (props:RouterGuard) => {
