@@ -1,13 +1,13 @@
 {
     "compilerOptions": {
         "module": "commonjs",
-	"experimentalDecorators": true,
+	    "experimentalDecorators": true,
         "target": "ES6",
         "jsx":"react",
         "allowSyntheticDefaultImports": true,
     },
     "include": [
-        "src", "go/router.ts", "mock"
+        "src"
     ],
     "exclude": [
         "node_modules"

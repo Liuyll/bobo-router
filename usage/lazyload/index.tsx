@@ -5,7 +5,7 @@
 
 
 import * as React from 'react'
-import { Lazy } from '../../src/bobots/index'
+import { Lazy } from '../../src/index'
 
 export default () => {
     return (

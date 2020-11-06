@@ -1,21 +1,10 @@
-///<reference types="webpack-env" />
+/* eslint-disable */
 
 import * as React from 'react'
-import { Route,Link,useLeaveGuard,useRouter,useLocation,connectGuard } from './bobots'
+import { Route,Link,useLeaveGuard,useRouter,useLocation,connectGuard } from '../../src'
 import { useState } from 'react'
 import URL1Component from './component'
-import Lazy from '../test/lazyload'
-
-if(module.hot){
-    /* 该dependency还需要研究
-      [参考](https://github.com/Jocs/jocs.github.io/issues/15)
-      hmr只做非jsx的模块更新,也就是只做js逻辑业务的更新
-      eg:accept('/hello.js',() => {
-          test.innerHTML = hello()
-      })
-    */
-    module.hot.accept('./')
-}
+import Lazy from '../lazyload'
 
 const App:React.SFC<any> = function(){
     const RouteGuardComponent = (props) => {

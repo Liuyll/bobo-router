@@ -1,5 +1,5 @@
 import { useLocation as useLocationHook,navigate,fuzzyMatchGuard }  from './useLocation'
-import makeMatcher from "../matcher.js"
+import makeMatcher from "./matcher"
 import { useActionEffect } from './tools'
 
 import {
@@ -55,7 +55,7 @@ interface UpdateRouteGuard {
 }
 const buildRouter = ({
     base = "",
-    matcher = makeMatcher(),
+    matcher = makeMatcher() as any,
     guardMap = {},
     prevPath = ""
 }:store['v'] = {} as store['v']) => ({ base, matcher,guardMap,prevPath })

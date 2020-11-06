@@ -1,6 +1,6 @@
 import * as React from 'react'
-import { Route,Link,useLeaveGuard } from './bobots'
-import { getParams } from './bobots/helper'
+import { Route,Link,useLeaveGuard } from '../../src'
+import { getParams } from '../../src/helper'
 
 export default () => {
     return (

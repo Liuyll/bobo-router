@@ -1,5 +1,3 @@
-import { useCallback } from 'react'
-import { params } from './context'
 import { useRoute,useNestRoute } from './index'
 
 export const getParams = (isExact:boolean,pattern:RegExp | string,...params: string[]) => {
