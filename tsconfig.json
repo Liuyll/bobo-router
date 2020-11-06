@@ -3,6 +3,7 @@
         "module": "commonjs",
 	    "experimentalDecorators": true,
         "target": "ES6",
+        "outDir": "lib",
         "jsx":"react",
         "allowSyntheticDefaultImports": true,
     },
