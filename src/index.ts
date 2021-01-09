@@ -17,9 +17,14 @@ import {
 
 import { RouterCtx,store,isMatch,params,matchFn } from './context'
 export { getParams } from './helper'
-/*
- * Hooks API: useRouter, useRoute and useLocation
- */
+
+interface ILeaveGuard {
+    (navigate:Function, next:Function):void
+}
+
+interface IEnterGuard {
+    (params: Object, navigate:Function, next: Function):void
+}
 
 type RouteProps = {
     path:string,
@@ -53,18 +58,25 @@ interface EnterRouteGuard {
 interface UpdateRouteGuard {
     (beforeParams:params,currentParams:params,navigate:Function,next:Function):void
 }
+
+enum ExecuteGuardType {
+    None,
+    Update,
+    // If not in exact mode. However should execute update instead enter
+    Update_UnResolve,
+    Enter,
+}
+
 const buildRouter = ({
     base = "",
     matcher = makeMatcher() as any,
-    guardMap = {},
+    enterGuardMap = {},
+    leaveGuardMap = {},
     prevPath = ""
-}:store['v'] = {} as store['v']) => ({ base, matcher,guardMap,prevPath })
+}:store['v'] = {} as store['v']) => ({ base, matcher,leaveGuardMap,prevPath, enterGuardMap })
 
 export const useRouter = () => {
     const globalRef = useContext(RouterCtx)
-
-    // either obtain the router from the outer context (provided by the
-    // `<Router /> component) or create an implicit one on demand.
     return globalRef.v || (globalRef.v = buildRouter())
 }
 
@@ -106,10 +118,6 @@ export const useNestRoute = (pattern:RegExp | string,prevMatchObject?:updateGuar
     return [useRouteMatch,path,navigate]
 }
 
-/*
- * Router API: Router, Route, Link, Switch
- */
-
 export const Router = props => {
     const ref = useRef<null | store>(null)
 
@@ -131,69 +139,55 @@ export const Route:React.FC<RouteProps> = ({ path, match, component, children, e
     useActionEffect(() => {
         if(!enterGuard) return
         let guardGroup = JSON.stringify({ from: '*',to: path })
-        globalCtx.guardMap[guardGroup] = (params,next) => enterGuard(params,navigate,next)
+        globalCtx.enterGuardMap[guardGroup] = (params,next) => enterGuard(params,navigate,next)
     },[enterGuard])
-    // `props.match` is present - Route is controlled by the Switch
     const [matches, params] = match && match(path,basePath) || useRouteMatch
-    // if (!matches) return null
+
     if(!matches) {
         if(!isAlive) return null
         else return renderChild({ display: 'none' })
     }
 
     // beforeEnter | beforeUpdate guard
-    
     globalCtx.prevPath = basePath
-
-    let isEnter = false
-    enum Execute_Guard_Type {
-        None,
-        Update,
-        // If not in exact mode. However should execute update instead enter
-        Update_UnResolve,
-        Enter,
-    }
-    let execute_guard_type = Execute_Guard_Type.None
     // judge execute RouteGuard Type
     // Type: Update | Enter 
     // emit UpdateGuard
-
+    let _next = false
+    const next = () => _next = true
+    let executeGuardType = ExecuteGuardType.Enter
     if(updateParamsRef.current.timer > 1) {
         // only emit UpdateGuard in unExact Mode 
         if(!exact) {
             if(updateGuard) {
-                const next = () => isEnter = true
                 updateGuard(prevParams,updateParamsRef.current.prevParams,navigate,next)
-            } else isEnter = true
-            execute_guard_type = Execute_Guard_Type.Update
+            } else next()
+            executeGuardType = ExecuteGuardType.Update
         }
-        else execute_guard_type = Execute_Guard_Type.Update_UnResolve
+        else executeGuardType = ExecuteGuardType.Update_UnResolve
     }
 
-    if(execute_guard_type == Execute_Guard_Type.None) {
+    if(executeGuardType == ExecuteGuardType.Enter) {
         const from = '*'
-
         const guardGroup = JSON.stringify({ from: from,to: basePath })
-        const executeGuards = globalCtx.guardMap[guardGroup]  
- 
-        if(executeGuards) {
-            executeGuards(null,() => isEnter = true) 
+        const executeGuard = globalCtx.enterGuardMap[guardGroup]  
+        
+        if(executeGuard) {
+            executeGuard(null,next) 
         } else {
-            const matched = fuzzyMatchGuard(globalCtx,basePath)
+            const matched = fuzzyMatchGuard(globalCtx,basePath, '*', 'enterGuardMap')
             if(matched[0]) {
-                const fuzzyExecuteGuard = globalCtx.guardMap[matched[0]]
-                fuzzyExecuteGuard(matched[1],() => isEnter = true)
+                const fuzzyExecuteGuard = globalCtx.enterGuardMap[matched[0]]
+                fuzzyExecuteGuard(matched[1],next)
             }
-            else isEnter = true
+            else next()
         }
     }
 
-    if(!isEnter) return null
-    
+    if(!_next) return null
     return renderChild()
 
     function renderChild(extraProps ?: object) {
-        // React-Router style `component` prop
         if (component) return h(component, { params,...extraProps } as any)
 
         // support render prop or plain children
@@ -201,26 +195,20 @@ export const Route:React.FC<RouteProps> = ({ path, match, component, children, e
     }
 }
 
-export const useLeaveGuard = (props:RouterGuard) => {
+export const useLeaveGuard = (props:Exclude<RouterGuard, 'type'>) => {
     const [curPath,navigate] = useLocationHook()
-    const { path = curPath,resolve,to,type } = props
-    // type : 'beforeLeave' | 'beforeEnter'
+    const { path = curPath,resolve,to } = props
     const globalRef = useContext(RouterCtx)
     
     useEffect(() => {  
         let realPath = path
-
-        // call useGuard in FC 
-        // first render is not effected
-        if(type == 'beforeEnter') realPath = '*'
         const currentGuardFlagGroup = JSON.stringify({ from: realPath,to })
-        
-        globalRef.v.guardMap[currentGuardFlagGroup] = next => resolve(navigate,next)
+        globalRef.v.leaveGuardMap[currentGuardFlagGroup] = next => resolve(navigate,next)
     },[path,resolve,to])
 }
 
-export const connectGuard = (type:Exclude<guardTypes,'beforeUpdate'>,resolve,from:string,to?:string) => (Component:React.FC):React.FC => {
-    if(type === 'beforeEnter') {
+export const connectGuard = (type:Exclude<guardTypes,'beforeUpdate'>,resolve:ILeaveGuard | IEnterGuard,from:string,to?:string) => (Component:React.FC):React.FC => {
+    if(type === 'beforeEnter' || !to) {
         to = '*'
     }
 
@@ -231,18 +219,26 @@ export const connectGuard = (type:Exclude<guardTypes,'beforeUpdate'>,resolve,fro
         const { prevPath } = globalRef.v
         const [curPath,navigate] = useLocationHook()
 
-        let isRender = 0
+        let nextRender = 0
         const next = () => {
-            isRender = 1
+            nextRender = 1
         }
 
         if(type === 'beforeEnter' ) {
             if(from === '*' || matcher(from,prevPath)[0]) {
-                resolve(prevPath,navigate,next)
+                (resolve as IEnterGuard)(prevPath,navigate,next)
             }
+        } else if(type === 'beforeLeave') {
+            const resolve1:ILeaveGuard = resolve as ILeaveGuard
+            useLeaveGuard({
+                resolve: resolve1,
+                to,
+                type: 'beforeLeave'
+            })
+            nextRender = 1
         }
 
-        if(isRender) return h(Component,others,children)
+        if(nextRender) return h(Component,others,children)
         return h('div')
     }
 }

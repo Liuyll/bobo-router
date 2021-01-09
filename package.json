@@ -1,7 +1,9 @@
 {
   "name": "bobo-router",
   "author": "liuyll",
-  "main": "lib/bobo-router.esm.js",
+  "main": "src/index.ts",
+  "module": "bobo-router.js",
+  "browser": "bobo-router.esm.js",
   "scripts": {
     "build": "rollup -c"
   },
@@ -18,3 +20,4 @@
     "react-dom": ">=16.8.0"
   }
 }
+

@@ -6,10 +6,11 @@ export type matchFn = (pattern:string | RegExp,path:string) => [isMatch,params]
 
 export interface store {
     v:{
-        base:string,
-        guardMap:{[path:string]:Function},
-        prevPath:string,
-        matcher:matchFn,
+        base:string
+        leaveGuardMap:{[path:string]:Function}
+        enterGuardMap:{[path:string]:Function}
+        prevPath:string
+        matcher:matchFn
     }, 
     [customData:string]:any
 }
