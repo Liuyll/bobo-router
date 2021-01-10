@@ -10,6 +10,22 @@
 
 ## 使用文档
 
+### 不同模式
+`bobo`支持多个模式:
++ `hash`
++ `history`
+
+具体的差别就不用太多解释了，需要注意的是：
++ `hash`模式下，无法再使用锚点跳转。若有需求，请转为`js`实现。
++ `history`模式下，需要服务端配合`404`页面跳转。
+
+#### 设置mode
+默认情况下，`bobo-router`为`history`模式，如果需要设置为`hash`：
+```
+import { setRouteMode, RouteMode } from 'bobo-router'
+setRouteMode(RouteMode.hash)
+```
+
 ### 组件
 
 <b>概览:</b>
@@ -134,6 +150,10 @@ connectGuard('beforeLeave',())
 
 基本上，除了非常小型的应用，你都应该以`Router`组件作为根组件，因为这百利而无一害。当然，即使你不使用它作为根组件，必要的属性也会在守卫(下文会提到)里以参数的形式传入。
 
+#### Router
+`Router`组件为子组件注入一个`Store`
+
+> `Router`组件并不是必须的
 #### Route
 
 `<Route path={path}>{params => ... }</Route>`
@@ -167,10 +187,18 @@ import { Route,Switch } from 'bobo-router'
 </Switch>
 ```
 
-
-
 #### Redirect
+`Redirect`组件支持路由重定位
+```
+import { Redirect } from 'bobo-router'
 
+...
+<Route></Route>
+<Route></Route>
+<Route></Route>
+<Redirect to="/404" />
+```
+上面的例子会以一个`404`路由进行兜底。
 #### Lazy
 
 一个懒加载组件，它依赖了`suspense`，所以无法在`SSR`里使用，如果你有`SSR`需求，可以参考`react-lazy`
@@ -190,8 +218,13 @@ export () => {
 
 在未来，它甚至可以配合`use-transaction`这样的api，实现不可思议的效果，敬请期待。
 
-
-
 ### Hooks API
-#### useRouter
 #### useLocation
+`useLocation`返回了路径`path`和导航到其他页面的函数`navigate`
+```
+import { useLocation } from 'bobo-router'
+
+...
+const [path, navigate] = useLocation()
+navigate('replace', '/404')
+```

@@ -286,16 +286,14 @@ const Switch = ({ children, location }) => {
         let match:[boolean,params]
 
         if (
-            isValidElement(element) &&
-            
-      // this allows to use different components that wrap Route
-      // inside of a switch, for example <AnimatedRoute />.
-      (match = element.props['path']
-          ? matcher(element.props['path'], location || originalLocation)
-          : [false, {}]
-      )[0]
-        )
-            return cloneElement(element, { match,path: element.props['path'] } as any)
+            isValidElement(element) &&   
+            // this allows to use different components that wrap Route
+            // inside of a switch, for example <AnimatedRoute />.
+            (match = element.props['path']
+                ? matcher(element.props['path'], location || originalLocation)
+                : [false, {}]
+            )[0]
+        ) return cloneElement(element, { match,path: element.props['path'] } as any)
     }
 
     // eslint-disable-next-line
