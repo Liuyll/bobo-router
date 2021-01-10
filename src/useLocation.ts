@@ -1,12 +1,17 @@
 import { useEffect,useState,useCallback,useRef,useContext } from 'react'
 import { RouterCtx,store } from './context'
-
+import { routeMode, RouteMode } from './mode'
 declare namespace history {
     function pushState(...p:any[]) : void
     function replaceState(...p:any[]) : void
     function popState(...p:any[]): void
 }
 type navigate = (url:string,type ?: "replace" | "to") => void
+// to: '*' || from: '*' 
+enum GuardKeyAny {
+    to,
+    from
+}
 
 const NOOP = () => {}
 let INIT_PATCH_HISTORY_EVENT = 0
@@ -24,77 +29,100 @@ const useLocation = ({ base = "" } = {}):[string,navigate] => {
         }
         INIT_PATCH_HISTORY_EVENT || (INIT_PATCH_HISTORY_EVENT = 1,patchHistoryEvent(globalRef.current))
         
-        const subscribeEvent = ['replaceState','pushState','popState']
+        const historyModeSubscribeEvent = ['replaceState','pushState','popState']
+        const hashModeSubscribeEvent = 'hashChange'
         // subscribe dep. wait emit...
-        subscribeEvent.forEach((event) => {
+        if(routeMode === RouteMode.history) historyModeSubscribeEvent.forEach((event) => {
             addEventListener(event,checkUpdate)
-        })
+        }) 
+        else if(routeMode === RouteMode.hash) addEventListener(hashModeSubscribeEvent, checkUpdate)
 
         // checkUpdate()
         return () => {
-            subscribeEvent.forEach((event) => {
+            historyModeSubscribeEvent.forEach((event) => {
                 removeEventListener(event,checkUpdate)
             })
         }
     },[base])
 
     const navigate:navigate = useCallback((url:string,type:"replace" | "to" = "to") => {
-        history[type == "replace" ? "replaceState" : "pushState"](0,'0',base + url,path)
-    },[])
+        // path handle by patchHistoryEvent: 4th param
+        if(routeMode === RouteMode.history) history[type == "replace" ? "replaceState" : "pushState"](0,'0',base + url, path)
+        else if(routeMode === RouteMode.hash) location.hash = base + url
+    },[path])
 
     return [path,navigate]
 }  
 
 function patchHistoryEvent(globalRef:store['v']) {
-    ;['replaceState','pushState'].forEach((event) => {
-        const ORIGINAL_EVENT = history[event]
-        history[event] = function(state:any,title:string,to:string,path:string) {
-            // leave guard: when false refuse navigate
-            let _next = false
-            if(to) {
-                const guardKey1 = JSON.stringify({ from: path,to }),
-                    guardKey2 = JSON.stringify({from: path, to: '*'})
-                let beforeLeaveGuard = to !== path && ( globalRef.leaveGuardMap[guardKey1] || globalRef.leaveGuardMap[guardKey2])  
-                
-                if(!beforeLeaveGuard) {
-                    // fuzzy match for params case 
-                    // eg: /url/:id
-                    const matched = fuzzyMatchGuard(globalRef,to,path)
-                    matched && (beforeLeaveGuard = globalRef.leaveGuardMap[matched[0]])
-
-                    if(!beforeLeaveGuard) _next = true
+    if(routeMode === RouteMode.history) {
+        ['replaceState','pushState'].forEach((event) => {
+            const ORIGINAL_EVENT = history[event]
+            history[event] = function(state:any,title:string,to:string,path:string) {
+                // leave guard: when false refuse navigate
+                let _next = false
+                const next = () => _next = true
+                if(to) {
+                    const [guardKey1, guardKey2] = generateGuardKeys(path, to)
+                    let beforeLeaveGuard = to !== path && ( globalRef.leaveGuardMap[guardKey1] || globalRef.leaveGuardMap[guardKey2])  
+                    
+                    if(!beforeLeaveGuard) {
+                        // fuzzy match for params case 
+                        // eg: /url/:id
+                        const matched = fuzzyMatchGuard(globalRef,to,path)
+                        matched && (beforeLeaveGuard = globalRef.leaveGuardMap[matched[0]])
+    
+                        if(!beforeLeaveGuard) next()
+                    }
+                    if(beforeLeaveGuard) {
+                        beforeLeaveGuard(next)
+                    }
                 }
-                if(beforeLeaveGuard) {
-                    beforeLeaveGuard(() => _next = true)
-                }
+    
+                if(!_next) return null
+                const result = ORIGINAL_EVENT.apply(this,[state,title,to])
+                const subscribeEvent = new CustomEvent(event,{ detail: { to,path } })
+                dispatchEvent(subscribeEvent)
+              
+                return result
             }
-
-            if(!_next) return null
-            const result = ORIGINAL_EVENT.apply(this,[state,title,to])
-            const subscribeEvent = new CustomEvent(event,{ detail: { to,path } })
-            dispatchEvent(subscribeEvent)
-          
-            return result
+    
+            window.onpopstate = () => {
+                const from = globalRef.prevPath,
+                    to = location.pathname
+                const [guardKey1, guardKey2] = generateGuardKeys(from, to)
+                let beforeLeaveGuards = from !== to && ( globalRef.leaveGuardMap[guardKey1] || globalRef.leaveGuardMap[guardKey2]) 
+                // browser back action not refuse
+                beforeLeaveGuards && beforeLeaveGuards(NOOP)
+                
+                const popEvent = new CustomEvent('popState')
+                dispatchEvent(popEvent)
+            }
+        })
+    }
+    else if(routeMode === RouteMode.hash) {
+        window.onhashchange = () => {
+            const hashChangeEvent = new CustomEvent('hashChange')
+            dispatchEvent(hashChangeEvent)
         }
-
-        window.onpopstate = () => {
-            const from = globalRef.prevPath,
-                to = location.pathname
-            const guardKey1 = JSON.stringify({ from, to }),
-                guardKey2 = JSON.stringify({from, to: '*'})
-            let beforeLeaveGuards = from !== to && ( globalRef.leaveGuardMap[guardKey1] || globalRef.leaveGuardMap[guardKey2]) 
-            // browser back action not refuse
-            beforeLeaveGuards && beforeLeaveGuards(NOOP)
-            
-            const popEvent = new CustomEvent('popState')
-            dispatchEvent(popEvent)
-        }
-        
-    })
+    }
 } 
 
-function getCurrentPathname(base,pathname = location.pathname) {
+function generateGuardKeys(from: string, to: string, any:GuardKeyAny = GuardKeyAny.to) {
+    return [
+        JSON.stringify({from, to}),
+        any === GuardKeyAny.to ? JSON.stringify({from, to: '*'}) : JSON.stringify({from: '*', to})
+    ]
+}
+
+function getCurrentPathname(base,pathname ?: string) {
     // from basepath
+    if(routeMode === RouteMode.history) pathname = location.pathname
+    else if(routeMode === RouteMode.hash) {
+        pathname = location.hash
+        if(!pathname.length) pathname = '/'
+        else pathname = pathname.slice(1)
+    }
     return !pathname.indexOf(base) ? pathname.slice(base.length) || '/' : pathname
 }
 

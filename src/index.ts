@@ -1,6 +1,7 @@
 import { useLocation as useLocationHook,navigate,fuzzyMatchGuard }  from './useLocation'
 import makeMatcher from "./matcher"
 import { useActionEffect } from './tools'
+import { routeMode, setRouteMode, RouteMode } from './mode'
 
 import {
     useRef,
@@ -75,27 +76,27 @@ const buildRouter = ({
     prevPath = ""
 }:store['v'] = {} as store['v']) => ({ base, matcher,leaveGuardMap,prevPath, enterGuardMap })
 
-export const useRouter = () => {
+const useRouter = () => {
     const globalRef = useContext(RouterCtx)
     return globalRef.v || (globalRef.v = buildRouter())
 }
 
-export const useLocation = () => {
+const useLocation = () => {
     const router = useRouter()
     return useLocationHook(router)
 }
 
-export const useRoute = (pattern:RegExp | string):[[isMatch,params],string,(type:"replace" | "to",url:string) => void] => {
+const useRoute = (pattern:RegExp | string):[[isMatch,params],string,(type:"replace" | "to",url:string) => void] => {
     const [path,navigate] = useLocation()
     return [useRouter().matcher(pattern, path),path,navigate]
 }
 
-export const useNestRoute = (pattern:RegExp | string,prevMatchObject?:updateGuardStruct):[[isMatch,params],string,(type:"replace" | "to",url:string) => void] => {
+const useNestRoute = (pattern:RegExp | string,prevMatchObject?:updateGuardStruct):[[isMatch,params],string,(type:"replace" | "to",url:string) => void] => {
     const [path,navigate] = useLocation()
     const matcher = useRouter().matcher
 
     const match_paths = path.split('/')
-    let useRouteMatch:[isMatch,params] = [false,{}]
+    let routeMatch:[isMatch,params] = [false,{}]
 
     // avoid '/' Component show in any router
     for(let i = 1,base = "/";i < match_paths.length;i++) {
@@ -109,16 +110,16 @@ export const useNestRoute = (pattern:RegExp | string,prevMatchObject?:updateGuar
                     prevMatchObject.prevParams = result[1]
                 }
             } 
-            useRouteMatch = result
+            routeMatch = result
             break
         }
         base += match_paths[i] + '/'
     }
-    useRouteMatch[0] || prevMatchObject && (prevMatchObject.timer = 0,prevMatchObject.prevParams = {})
-    return [useRouteMatch,path,navigate]
+    routeMatch[0] || prevMatchObject && (prevMatchObject.timer = 0,prevMatchObject.prevParams = {})
+    return [routeMatch,path,navigate]
 }
 
-export const Router = props => {
+const Router = props => {
     const ref = useRef<null | store>(null)
 
     // only in first render to call buildRouter
@@ -130,10 +131,10 @@ export const Router = props => {
     })
 }
 
-export const Route:React.FC<RouteProps> = ({ path, match, component, children, enterGuard,updateGuard,exact = false,isAlive }) => {
+const Route:React.FC<RouteProps> = ({ path, match, component, children, enterGuard,updateGuard,exact = false,isAlive }) => {
     const updateParamsRef = useRef<updateGuardStruct>({ path: "",timer: 0,prevParams: {} })
     const prevParams = updateParamsRef.current.prevParams
-    const [useRouteMatch,basePath,navigate] = !exact ? useNestRoute(path,updateParamsRef.current) : useRoute(path)
+    const [routeMatch,basePath,navigate] = !exact ? useNestRoute(path,updateParamsRef.current) : useRoute(path)
     const globalCtx = useRouter()
 
     useActionEffect(() => {
@@ -141,7 +142,7 @@ export const Route:React.FC<RouteProps> = ({ path, match, component, children, e
         let guardGroup = JSON.stringify({ from: '*',to: path })
         globalCtx.enterGuardMap[guardGroup] = (params,next) => enterGuard(params,navigate,next)
     },[enterGuard])
-    const [matches, params] = match && match(path,basePath) || useRouteMatch
+    const [matches, params] = match && match(path,basePath) || routeMatch
 
     if(!matches) {
         if(!isAlive) return null
@@ -195,7 +196,7 @@ export const Route:React.FC<RouteProps> = ({ path, match, component, children, e
     }
 }
 
-export const useLeaveGuard = (props:Exclude<RouterGuard, 'type'>) => {
+const useLeaveGuard = (props:Exclude<RouterGuard, 'type'>) => {
     const [curPath,navigate] = useLocationHook()
     const { path = curPath,resolve,to } = props
     const globalRef = useContext(RouterCtx)
@@ -207,7 +208,7 @@ export const useLeaveGuard = (props:Exclude<RouterGuard, 'type'>) => {
     },[path,resolve,to])
 }
 
-export const connectGuard = (type:Exclude<guardTypes,'beforeUpdate'>,resolve:ILeaveGuard | IEnterGuard,from:string,to?:string) => (Component:React.FC):React.FC => {
+const connectGuard = (type:Exclude<guardTypes,'beforeUpdate'>,resolve:ILeaveGuard | IEnterGuard,from:string,to?:string) => (Component:React.FC):React.FC => {
     if(type === 'beforeEnter' || !to) {
         to = '*'
     }
@@ -243,12 +244,12 @@ export const connectGuard = (type:Exclude<guardTypes,'beforeUpdate'>,resolve:ILe
     }
 }
 
-export const Link = props => {
+const Link = props => {
     const [, navigate] = useLocation()
     const { base } = useRouter()
 
     const href = props.href || props.to
-    const { children, onClick } = props
+    const { children, onClick, tag } = props
 
     const handleClick = useCallback(
         event => {
@@ -268,14 +269,14 @@ export const Link = props => {
         [href, onClick, navigate]
     )
 
-    // default render 'a' component
     const extraProps = { href: base + href, onClick: handleClick, to: null }
-    const jsx = isValidElement(children) ? children : h("a", props)
+    // default render 'a' component
+    const render = isValidElement(children) ? children : h(tag ? tag : "a", props)
 
-    return cloneElement(jsx, extraProps)
+    return cloneElement(render, extraProps)
 }
 
-export const Switch = ({ children, location }) => {
+const Switch = ({ children, location }) => {
     const { matcher } = useRouter()
     const [originalLocation] = useLocation()
 
@@ -305,7 +306,7 @@ export const Switch = ({ children, location }) => {
     return null
 }
 
-export const Redirect = props => {
+const Redirect = props => {
     const [, push] = useLocation()
     useLayoutEffect(() => {
         // layout has finished 
@@ -320,10 +321,25 @@ export const Redirect = props => {
 }
 
 
-export const Lazy:React.FC<{loading:React.ReactNode,component:() => Promise<{default:React.ComponentType}>}> = ({ loading,component }) => {
+const Lazy:React.FC<{loading:React.ReactNode,component:() => Promise<{default:React.ComponentType}>}> = ({ loading,component }) => {
     const RC = lazy(component) 
     return h(Suspense,{ fallback: loading },h(RC))
 }
     
-
-export default useRoute
+export {
+    Lazy,
+    Redirect,
+    Switch,
+    useLeaveGuard,
+    connectGuard,
+    Link,
+    useRouter,
+    useLocation,
+    useRoute,
+    useNestRoute,
+    Router,
+    Route,
+    setRouteMode,
+    routeMode,
+    RouteMode
+}
