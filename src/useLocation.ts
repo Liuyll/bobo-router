@@ -1,6 +1,7 @@
 import { useEffect,useState,useCallback,useRef,useContext } from 'react'
 import { RouterCtx,store } from './context'
 import { routeMode, RouteMode } from './mode'
+import { useEventCallback } from './tools'
 declare namespace history {
     function pushState(...p:any[]) : void
     function replaceState(...p:any[]) : void
@@ -20,13 +21,14 @@ const useLocation = ({ base = "" } = {}):[string,navigate] => {
     const [path,update] = useState<string>(getCurrentPathname(base)) 
     const prevPath = useRef(path)
     const globalRef = useRef<store['v']>(useContext(RouterCtx).v as any as store['v'])
-   
+
+    const checkUpdate = useEventCallback(() => {
+        let curPath = getCurrentPathname(base)
+        // globalRef.current.prevPath = prevPath.current
+        prevPath.current !== curPath && update((prevPath.current = curPath))
+    },[base, update])
+
     useEffect(() => {
-        const checkUpdate = () => {
-            let curPath = getCurrentPathname(base)
-            // globalRef.current.prevPath = prevPath.current
-            prevPath.current !== curPath && update((prevPath.current = curPath))
-        }
         INIT_PATCH_HISTORY_EVENT || (INIT_PATCH_HISTORY_EVENT = 1,patchHistoryEvent(globalRef.current))
         
         const historyModeSubscribeEvent = ['replaceState','pushState','popState']
@@ -39,9 +41,10 @@ const useLocation = ({ base = "" } = {}):[string,navigate] => {
 
         // checkUpdate()
         return () => {
-            historyModeSubscribeEvent.forEach((event) => {
+            if(routeMode === RouteMode.history) historyModeSubscribeEvent.forEach((event) => {
                 removeEventListener(event,checkUpdate)
-            })
+            }) 
+            else removeEventListener(hashModeSubscribeEvent, checkUpdate)
         }
     },[base])
 
@@ -101,7 +104,11 @@ function patchHistoryEvent(globalRef:store['v']) {
         })
     }
     else if(routeMode === RouteMode.hash) {
-        window.onhashchange = () => {
+        window.onhashchange = (event:HashChangeEvent) => {
+            const [guardKey1, guardKey2] = generateGuardKeys(getHashFromHref(event.oldURL), getHashFromHref(event.newURL))
+            let beforeLeaveGuard = event.oldURL !== event.newURL && (globalRef.leaveGuardMap[guardKey1] || globalRef.leaveGuardMap[guardKey2])
+            beforeLeaveGuard && beforeLeaveGuard(() => {})
+
             const hashChangeEvent = new CustomEvent('hashChange')
             dispatchEvent(hashChangeEvent)
         }
@@ -117,13 +124,22 @@ function generateGuardKeys(from: string, to: string, any:GuardKeyAny = GuardKeyA
 
 function getCurrentPathname(base,pathname ?: string) {
     // from basepath
-    if(routeMode === RouteMode.history) pathname = location.pathname
-    else if(routeMode === RouteMode.hash) {
-        pathname = location.hash
-        if(!pathname.length) pathname = '/'
-        else pathname = pathname.slice(1)
+    if(routeMode === RouteMode.history) {
+        pathname = location.pathname
+        return !pathname.indexOf(base) ? pathname.slice(base.length) || '/' : pathname
     }
-    return !pathname.indexOf(base) ? pathname.slice(base.length) || '/' : pathname
+    else if(routeMode === RouteMode.hash) {
+        return getHashFromHref(location.href)
+    }
+}
+
+function getHashFromHref(path: string) {
+    debugger
+    const hashIndex = path.indexOf('#')
+    if(!~hashIndex) path = '/'
+    else path = path.slice(hashIndex + 1)
+    
+    return path
 }
 
 function fuzzyMatchGuard(globalRef:store['v'],to:string,from:string = '*', leaveGuardMap:string = "leaveGuardMap"):[string,any[]]{

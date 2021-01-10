@@ -1,11 +1,23 @@
-import { useRef } from 'react'
+import { useRef, useCallback, useEffect } from 'react'
 
-export const useActionEffect = (action:Function,deps:unknown[]) => {
+const useActionEffect = (action:Function,deps:unknown[]) => {
     const depRef = useRef<unknown[]>()
     if(isEqual(depRef.current,deps)) return
     
     action()
     depRef.current = deps
+}
+
+const useEventCallback = (fn:Function, deps: unknown[]) => {
+    const ref = useRef<Function>(() => Error('useEventCallback must init first!'))
+    
+    useEffect(() => {
+        ref.current = fn
+    },deps)
+
+    return useCallback(() => {
+        return ref.current()
+    },[fn, ref])
 }
 
 function is(x:unknown, y:unknown) {
@@ -29,4 +41,9 @@ function isEqual(old,cur) {
         if(cur[key] !== old[key]) return false
     })
     return true
+}
+
+export {
+    useEventCallback,
+    useActionEffect
 }
