@@ -2,6 +2,8 @@
   "name": "bobo-router",
   "author": "liuyll",
   "main": "src/index.ts",
+  "module": "lib/bobo-router.js",
+  "browser": "lib/bobo-router.esm.js",
   "scripts": {
     "build": "rollup -c"
   },
